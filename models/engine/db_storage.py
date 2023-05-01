@@ -51,6 +51,39 @@ class DBStorage:
                     new_dict[key] = obj
         return (new_dict)
 
+    def get(self, cls=None, id=None):
+        """
+        Returns the object based on the class and its ID, or
+        None if not found
+        """
+        if cls is None or id is None:
+            return None
+        objs = self.__session.query(cls).all()
+        for obj in objs:
+            if obj.id == id:
+                return obj
+        return None
+
+    def count(self, cls=None):
+        """
+        Returns the number of objects in storage matching the given
+        class or returns the count of all objects
+        """
+        if cls is None:
+            objs = []
+            noObj = 0
+            objs.append(self.__session.query(User).all())
+            objs.append(self.__session.query(State).all())
+            objs.append(self.__session.query(City).all())
+            objs.append(self.__session.query(Place).all())
+            objs.append(self.__session.query(Amenity).all())
+            objs.append(self.__session.query(Review).all())
+            for obj in objs:
+                noObj += len(obj)
+            return noObj
+        else:
+            return len(self.__session.query(cls).all())
+
     def new(self, obj):
         """add the object to the current database session"""
         self.__session.add(obj)
@@ -74,33 +107,3 @@ class DBStorage:
     def close(self):
         """call remove() method on the private session attribute"""
         self.__session.remove()
-
-    def get(self, cls, id):
-        """Returns the object based on the class and its ID,
-        or None if not found"""
-
-        # Determine if `cls` is a string or an abject
-        if type(cls) is str:
-            cls = classes[cls]
-
-        objs = self.__session.query(cls).all()
-        for obj in objs:
-            if obj.id == id:
-                return obj
-
-    def count(self, cls=None):
-        """Returns the number of objects in storage matching the given class.
-        If no class is passed, returns the count of all objects in storage"""
-
-        # Determine if `cls` is a string or an abject
-        if type(cls) is str:
-            cls = classes[cls]
-
-        if cls:
-            objs = self.__session.query(cls).all()
-            return len(objs)
-
-        sum = 0
-        for clss in classes.values():
-            sum += self.__session.query(clss).count()
-        return sum

@@ -34,6 +34,26 @@ class FileStorage:
             return new_dict
         return self.__objects
 
+    def get(self, cls=None, id=None):
+        """
+        Returns the object based on the class and its ID, or
+        None if not found
+        """
+        if cls is None or id is None:
+            return None
+        obj = self.__objects.get('{}.{}'.format(cls.__name__, id), None)
+        return obj
+
+    def count(self, cls=None):
+        """
+        Returns the number of objects in storage matching the given
+        class or returns the count of all objects
+        """
+        if cls is None:
+            return len(self.__objects.items())
+        else:
+            return len(self.all(cls).items())
+
     def new(self, obj):
         """sets in __objects the obj with key <obj class name>.id"""
         if obj is not None:
@@ -44,7 +64,7 @@ class FileStorage:
         """serializes __objects to the JSON file (path: __file_path)"""
         json_objects = {}
         for key in self.__objects:
-            json_objects[key] = self.__objects[key].to_dict()
+            json_objects[key] = self.__objects[key].to_dict(True)
         with open(self.__file_path, 'w') as f:
             json.dump(json_objects, f)
 
@@ -55,7 +75,7 @@ class FileStorage:
                 jo = json.load(f)
             for key in jo:
                 self.__objects[key] = classes[jo[key]["__class__"]](**jo[key])
-        except FileNotFoundError:
+        except Exception:
             pass
 
     def delete(self, obj=None):
@@ -68,30 +88,3 @@ class FileStorage:
     def close(self):
         """call reload() method for deserializing the JSON file to objects"""
         self.reload()
-
-    def get(self, cls, id):
-        """Returns the object based on the class and its ID,
-        or None if not found"""
-        self.reload()
-
-        # Determine if `cls` is a string or an abject
-        if type(cls) is str:
-            cls = classes[cls]
-        key = cls.__name__ + '.' + id
-
-        return self.__objects.get(key, None)
-
-    def count(self, cls=None):
-        """Returns the number of objects in storage matching the given class.
-        If no class is passed, returns the count of all objects in storage"""
-
-        # Determine if `cls` is a string or an abject
-        if type(cls) is str:
-            cls = classes[cls]
-        if cls:
-            sum = 0
-            for item in self.__objects.values():
-                if isinstance(item, cls):
-                    sum += 1
-            return sum
-        return len(self.__objects)

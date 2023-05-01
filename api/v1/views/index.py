@@ -1,37 +1,34 @@
 #!/usr/bin/python3
-"""Create route"""
+"""index.py to connect to API"""
 from api.v1.views import app_views
-import json
-from flask import make_response
+from flask import jsonify
 from models import storage
 
 
-def prettify(dict_obj):
-    """prettily serializes dictionary objects to json string"""
-    if not isinstance(dict_obj, dict):
-        raise TypeError('"dict_object" must be a python dictionary')
-    return json.dumps(dict_obj, indent=2) + "\n"
+hbnbText = {
+    "amenities": "Amenity",
+    "cities": "City",
+    "places": "Place",
+    "reviews": "Review",
+    "states": "State",
+    "users": "User"
+}
 
 
-@app_views.route('/status')
-def status():
-    """Return api status"""
-    resp = make_response(prettify({'status': 'OK'}))
-    resp.headers['Content-Type'] = 'application/json'
-    return resp
+@app_views.route('/status', strict_slashes=False)
+def hbnbStatus():
+    """hbnbStatus"""
+    return jsonify({"status": "OK"})
 
 
-@app_views.route('/stats')
-def stats():
-    """Return api stat"""
-    stat = {
-        "amenities": storage.count("Amenity"),
-        "cities": storage.count("City"),
-        "places": storage.count("Place"),
-        "reviews": storage.count("Review"),
-        "states": storage.count("State"),
-        "users": storage.count("User")
-    }
-    resp = make_response(prettify(stat))
-    resp.headers['Content-Type'] = 'application/json'
-    return resp
+@app_views.route('/stats', strict_slashes=False)
+def hbnbStats():
+    """hbnbStats"""
+    return_dict = {}
+    for key, value in hbnbText.items():
+        return_dict[key] = storage.count(value)
+    return jsonify(return_dict)
+
+
+if __name__ == "__main__":
+    pass

@@ -1,27 +1,30 @@
 #!/usr/bin/python3
-"""This module contain a flask application that deals with APIs"""
-from flask import Flask, make_response, jsonify
+"""Flask Application Server"""
+from flask import Flask, make_response
 from models import storage
 from api.v1.views import app_views
+from api.v1.functions import prettify
+from os import getenv
 
 app = Flask(__name__)
 app.register_blueprint(app_views)
 
 
 @app.teardown_appcontext
-def close(exception):
-    """Call storage.close to close a session and get another"""
+def disconnect(message):
+    """Close connection to storage engine"""
     storage.close()
 
+
 @app.errorhandler(404)
-def handle404(error):
-    """Handle error, 404"""
-    return make_response(jsonify({ "error": "Not found" }), 404)
+def error404(err):
+    """Custom error message"""
+    resp = make_response(prettify({'error': 'Not found'}))
+    resp.headers['Content-Type'] = 'application/json'
+    return resp, 404
 
 
-
-if __name__ == '__main__':
-    import os
-    host = os.getenv('HBNB_API_HOST') or '0.0.0.0'
-    port = os.getenv('HBNB_API_PORT') or 5000
-    app.run(host=host, port=port, threaded=True)
+if __name__ == "__main__":
+    app.run(host=getenv('HBNB_API_HOST', '0.0.0.0'),
+            port=getenv('HBNB_API_PORT', 5000),
+            threaded=True)

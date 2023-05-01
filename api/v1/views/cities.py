@@ -1,81 +1,98 @@
 #!/usr/bin/python3
-"""This module contain API for model class City"""
-from models import storage
-import uuid
+"""
+a new view for State objects that handles all default RESTFul API
+actions
+"""
+
+from api.v1.views import app_views
 from models.city import City
 from models.state import State
-from api.v1.views import app_views
-from flask import abort, jsonify, make_response, request
+from flask import jsonify, abort, request
+from models import storage
+
+cls = City
 
 
-@app_views.get('/states/<string:state_id>/cities',
-               strict_slashes=False)
-def get_cities_by_state(state_id):
-    """Get a all cities in a certain state"""
-    state = storage.get(State, state_id)
-    try:
-        cities = [city.to_dict() for city in state.cities]
-        return jsonify(cities)
-    except AttributeError:
+@app_views.route("/states/<string:state_id>/cities", methods=["GET"],
+                 strict_slashes=False)
+def get_city_state(state_id):
+    """Retrieves the list of all City objects of a State"""
+    obj = storage.get(State, state_id)
+    if obj is None:
         abort(404)
+    cities = []
+    for city in obj.cities:
+        cities.append(city.to_dict())
+    return jsonify(cities)
 
 
-@app_views.get('/cities/<string:city_id>',
-               strict_slashes=False)
-def get_city(city_id):
-    """Get a city given it's ID"""
-    city = storage.get(City, city_id)
-    try:
-        return jsonify(city.to_dict())
-    except AttributeError:
-        abort(404)
+@app_views.route("/cities/<string:city_id>", methods=["GET"],
+                 strict_slashes=False)
+def get_city(city_id=None):
+    """Retrieves a City object"""
+    if city_id is not None:
+        obj = storage.get(cls, city_id)
+        if obj is not None:
+            return jsonify(obj.to_dict())
+        else:
+            abort(404)
+    else:
+        objs = storage.all(cls)
+        my_lst = []
+        for obj in objs.values():
+            my_lst.append(obj.to_dict())
+        return jsonify(my_lst)
 
 
-@app_views.delete('/cities/<string:city_id>', strict_slashes=False)
+@app_views.route("/cities/<string:city_id>", methods=["DELETE"])
 def delete_city(city_id):
-    """Delete city from the the database"""
-    city = storage.get(City, city_id)
-    if not city:
+    """Deletes a City object"""
+    obj = storage.get(cls, city_id)
+    if obj is None:
         abort(404)
-    storage.delete(city)
-    return make_response(jsonify({}), 200)
+    else:
+        storage.delete(obj)
+        storage.save()
+        storage.reload()
+        return jsonify({})
 
 
-@app_views.post('/states/<string:state_id>/cities',
-                strict_slashes=False)
-def add_city(state_id):
-    """Add a city to a state where it belongs"""
-    try:
-        data = request.get_json()
-        if not data:
-            raise TypeError
-        city = City()
-        city.id = data.get('id', str(uuid.uuid4()))
-        city.name = data.get('name')
-        city.state_id = state_id
-        city.save()
-        return make_response(jsonify(city.to_dict()), 201)
-
-    except AttributeError:
+@app_views.route("/states/<string:state_id>/cities", methods=["POST"],
+                 strict_slashes=False)
+def create_city(state_id=None):
+    """Creates a City"""
+    obj = storage.get(State, state_id)
+    if obj is None:
         abort(404)
-    except TypeError:
-        return make_response(jsonify({'error': 'Not a JSON'}), 400)
+    my_dict = request.get_json(silent=True)
+    if my_dict is None:
+        abort(400, "Not a JSON")
+    if "name" not in my_dict:
+        abort(400, "Missing name")
+    names = my_dict["name"]
+    obj = cls(name=names, state_id=state_id)
+    storage.new(obj)
+    storage.save()
+    storage.reload()
+    return jsonify(obj.to_dict()), 201
 
 
-@app_views.put('/cities/<string:city_id>', strict_slashes=False)
+@app_views.route("/cities/<string:city_id>", methods=["PUT"])
 def update_city(city_id):
-    """Update city with new input"""
-    city = storage.get(City, city_id)
-    try:
-        data = request.get_json()
-        if not data:
-            raise TypeError
-        if data.get('name') and type(data.get('name')) is str:
-            city.name = data.get('name')
-            city.save()
-        return make_response(jsonify(city.to_dict()), 201)
-
-    except TypeError:
-        return make_response(jsonify({'error': 'Not a JSON'}), 400)
-    except AttributeError:
+    """Updates a City object"""
+    obj = storage.get(cls, city_id)
+    if obj is None:
         abort(404)
+    my_dict = request.get_json(silent=True)
+    if my_dict is None:
+        abort(400, "Not a JSON")
+    for k, v in my_dict.items():
+        if k == 'updated_at' or k == 'state_id':
+            continue
+        if k == 'id' or k == 'created_at':
+            continue
+        setattr(obj, k, v)
+    obj.save()
+    storage.save()
+    storage.reload()
+    return jsonify(obj.to_dict()), 200
